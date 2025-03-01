@@ -1,0 +1,13 @@
+Just some code experimenting around building Load Balancers with Rust
+with a simplistic approach, ideally to be scaled into more robust and
+production-like Load Balancers at some point; but for the moment just
+experimentation.
+
+Nothing really on the roadmap, just playing around with `tokio`, `axum`,
+atomics et al. to implement Round Robin load balancing with the idea of
+scaling it adding e.g. re-routing; as well as other load balancing strategies
+as Smart Load Balancing based on e.g. queue workload, request times, token
+count, etc.
+
+Nothing really fancy, just enjoying the programming and learning process, so
+take everything with a grain of salt, I'm no expert here.
