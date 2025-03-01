@@ -18,11 +18,13 @@ struct RoundRobin {
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    // TODO(clap)
     let rr = RoundRobin {
         hosts: vec!["localhost:10241".to_string(), "localhost:10242".to_string()],
         host_idx: AtomicUsize::new(0),
     };
 
+    // TODO(fmt)
     tracing_subscriber::fmt::init();
 
     let state = Arc::new(rr);
@@ -66,7 +68,9 @@ where
     }
 }
 
+// TODO(rename)
 async fn health(state: State<Arc<RoundRobin>>) -> Result<Response<Body>, ApiError> {
+    // TODO(+ /health req)
     let host_idx = state
         .host_idx
         .fetch_update(
