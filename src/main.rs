@@ -16,13 +16,48 @@ struct RoundRobin {
     host_idx: AtomicUsize,
 }
 
+impl RoundRobin {
+    async fn new(hosts: Vec<String>) -> Result<Self, anyhow::Error> {
+        let mut valid_hosts = Vec::new();
+        for host in hosts {
+            match Self::health(&host).await {
+                Ok(_) => valid_hosts.push(host),
+                Err(err) => eprintln!("{err}"),
+            }
+        }
+
+        if valid_hosts.len() < 1 {
+            anyhow::bail!(
+                "none of the provided valid hosts is reachable and/or the health check request failed"
+            );
+        }
+
+        Ok(Self {
+            hosts: valid_hosts,
+            host_idx: AtomicUsize::new(0),
+        })
+    }
+
+    async fn health(host: &str) -> Result<(), anyhow::Error> {
+        match reqwest::get(format!("{host}/health"))
+            .await
+            .context(format!("the request to {host}/health failed"))?
+            .status()
+        {
+            reqwest::StatusCode::OK => Ok(()),
+            _ => anyhow::bail!("health check failed for {host}"),
+        }
+    }
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     // TODO(clap)
-    let rr = RoundRobin {
-        hosts: vec!["localhost:10241".to_string(), "localhost:10242".to_string()],
-        host_idx: AtomicUsize::new(0),
-    };
+    let rr = RoundRobin::new(vec![
+        "http://localhost:10241".to_string(),
+        "http://localhost:10242".to_string(),
+    ])
+    .await?;
 
     // TODO(fmt)
     tracing_subscriber::fmt::init();
@@ -53,7 +88,7 @@ impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Something went wrong: {}", self.0),
+            format!("internal server error {}", self.0),
         )
             .into_response()
     }
@@ -76,7 +111,7 @@ async fn health(state: State<Arc<RoundRobin>>) -> Result<Response<Body>, ApiErro
         .fetch_update(
             std::sync::atomic::Ordering::SeqCst,
             std::sync::atomic::Ordering::SeqCst,
-            |v| Some(if v >= state.hosts.len() { 0 } else { v + 1 }),
+            |v| Some(if v >= state.hosts.len() - 1 { 0 } else { v + 1 }),
         )
         .map_err(|e| anyhow::anyhow!(e))
         .context("fetching and updating the host_idx failed, falling back to index 0")?;
